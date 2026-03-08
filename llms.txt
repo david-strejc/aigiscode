@@ -1,0 +1,60 @@
+# AigisCode
+
+> AI-powered static analysis that watches your entire codebase
+
+AigisCode is a whole-codebase evaluator for large mixed-language projects. It finds circular dependencies, dead code, hardwired values, and architectural issues using a six-stage pipeline: Index, Graph, Detect, Rules, AI Review, Report.
+
+Designed for AI coding agents. The primary output is machine-readable JSON at `.aigiscode/aigiscode-report.json`, structured for automated parsing, triage, and remediation.
+
+## Key Links
+
+- [Documentation](https://aigiscode.dev)
+- [GitHub Repository](https://github.com/david-strejc/aigiscode)
+- [AI Agent Usage Guide](https://github.com/david-strejc/aigiscode/blob/main/docs/AI_AGENT_USAGE.md)
+- [Architecture](https://github.com/david-strejc/aigiscode/blob/main/docs/ARCHITECTURE.md)
+- [Plugin System](https://github.com/david-strejc/aigiscode/blob/main/docs/PLUGIN_SYSTEM.md)
+- [Agent Instructions](https://github.com/david-strejc/aigiscode/blob/main/AGENTS.md)
+
+## Quick Start
+
+```bash
+pip install aigiscode
+aigiscode analyze /path/to/project
+cat .aigiscode/aigiscode-report.json
+```
+
+## Supported Languages
+
+PHP, Python, TypeScript, JavaScript, Vue, Ruby
+
+## Features
+
+- Circular dependency detection (strong architectural cycles and total runtime cycles)
+- Dead code detection (unused imports, unreferenced methods, orphaned properties, abandoned classes)
+- Hardwiring detection (magic strings, repeated literals, hardcoded IPs and URLs, env access outside config)
+- Layer violation detection (controllers importing views, models reaching into middleware)
+- God class detection (classes with excessive responsibility and coupling)
+- Bottleneck file identification (files with disproportionate inbound dependencies)
+- AI-assisted review (classifies findings as true_positive, false_positive, or needs_context)
+- Policy-driven behavior with plugin system (generic, django, wordpress, laravel profiles)
+- Machine-readable JSON output for AI agent consumption
+- Runtime contract extraction (routes, hooks, env vars, config keys)
+- Exclusion rule engine for durable false positive suppression
+
+## Real-World Results
+
+Tested on major codebases: Django (2,929 files, 46,064 symbols), WordPress (3,340 files, 33,804 symbols), and mixed Laravel+Vue projects (5,363 files, 27,302 symbols). Independent validation shows approximately 50% dead code precision with layer violations confirmed actionable.
+
+## Docs
+
+- [README](https://github.com/david-strejc/aigiscode/blob/main/README.md): Project overview, quick start, feature list
+- [AI Agent Usage](https://github.com/david-strejc/aigiscode/blob/main/docs/AI_AGENT_USAGE.md): How AI agents should use AigisCode
+- [Architecture](https://github.com/david-strejc/aigiscode/blob/main/docs/ARCHITECTURE.md): Six-stage pipeline, design principles, policy boundary
+- [Plugin System](https://github.com/david-strejc/aigiscode/blob/main/docs/PLUGIN_SYSTEM.md): Policy shape, merge order, external plugin modules
+- [Reliability](https://github.com/david-strejc/aigiscode/blob/main/docs/RELIABILITY.md): Validation methodology and precision tracking
+- [Analytical Mode](https://github.com/david-strejc/aigiscode/blob/main/docs/ANALYTICAL_MODE.md): AI-guided policy tuning
+
+## Optional
+
+- [Contributing](https://github.com/david-strejc/aigiscode/blob/main/CONTRIBUTING.md): Development setup and pull request conventions
+- [License](https://github.com/david-strejc/aigiscode/blob/main/LICENSE): MIT

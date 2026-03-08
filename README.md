@@ -2,7 +2,7 @@
   <br />
   <strong>AigisCode</strong>
   <br />
-  <em>AI-powered code guardian — static analysis that watches your entire codebase</em>
+  <em>Static analysis built for AI agents. Whole-codebase evaluation at scale.</em>
   <br />
   <br />
 </p>
@@ -16,14 +16,19 @@
 
 ---
 
-**Aigis** (Αἰγίς) is the ancient Greek word for _Aegis_ — the divine shield.
-The first two letters happen to be **AI**.
+> **Built by AI. Used by AI. Understood by AI.**
+>
+> AigisCode is evaluation infrastructure for AI coding agents. It analyzes entire
+> codebases to find the structural problems that single-file linters miss ---
+> circular dependencies, dead code, hardwired values, layer violations, and
+> architectural bottlenecks. The output is machine-readable JSON designed for
+> AI agents to parse, triage, and act on. Humans benefit from the reports, but
+> the primary workflow is: **AI agent runs AigisCode, AI agent reads JSON,
+> AI agent fixes code.**
 
-AigisCode is a whole-codebase evaluator for large, mixed-language projects.
-It combines deterministic static indexing with structural analysis, detector passes,
-policy-driven adaptation, and AI-assisted review to find the problems that
-single-file linters miss: circular dependencies, dead code, hardwired values,
-layer violations, and architectural bottlenecks.
+**Aigis** (Greek: Aigis) is the ancient Greek word for _Aegis_ --- the divine shield.
+The first two letters happen to be **AI**. AigisCode is your codebase's shield
+against architectural decay.
 
 ## Quick Start
 
@@ -33,20 +38,42 @@ cd your-project
 aigiscode analyze .
 ```
 
-That's it. AigisCode indexes your source, builds a dependency graph, runs
-detectors, applies policy rules, optionally asks an AI backend to review
-the results, and generates both human-readable and machine-readable reports.
+AigisCode indexes your source, builds a dependency graph, runs detectors,
+applies policy rules, optionally asks an AI backend to review the results,
+and generates both human-readable Markdown and machine-readable JSON reports.
+
+The machine-readable report is at:
+
+```
+.aigiscode/aigiscode-report.json
+```
+
+## Real-World Evaluation Results
+
+AigisCode has been tested on major open-source codebases. These are real numbers
+from production runs, not synthetic benchmarks.
+
+| Project | Files | Symbols | Dependencies | Circular Deps | God Classes | Dead Code | Hardwiring |
+|---|---|---|---|---|---|---|---|
+| **Django** | 2,929 | 46,064 | 25,311 | 100 | 102 | 151 | 135 |
+| **WordPress** | 3,340 | 33,804 | 6,791 | 9 strong / 64 total | 150 | 120 | 2,221 |
+| **Spina** (Rails) | 292 | 1,247 | 968 | 1 | 4 | minimal | minimal |
+| **Newerp** (Laravel+Vue) | 5,363 | 27,302 | 21,055 | 22 | 289 | 428 | 1,293 |
+
+Independent validation on Newerp: approximately 50% dead code precision, layer
+violations confirmed actionable by human reviewers. These results demonstrate
+that AigisCode scales from small Rails gems to large multi-language monoliths.
 
 ## What Does AigisCode Find?
 
 | Category | Examples |
 |---|---|
-| **Circular dependencies** | Module A imports B, B imports C, C imports A — both strong (architectural) and total (runtime/load) cycles |
+| **Circular dependencies** | Module A imports B, B imports C, C imports A --- both strong (architectural) and total (runtime/load) cycles |
 | **Dead code** | Unused imports, unreferenced private methods, orphaned properties, abandoned classes |
 | **Hardwired values** | Magic strings, repeated literals, hardcoded IPs and URLs, env access outside config |
 | **Layer violations** | A controller importing directly from a view, a model reaching into middleware |
 | **Structural risks** | God classes, bottleneck files, orphan modules with no inbound dependencies |
-| **Runtime contracts** | Routes, hooks, env vars, config keys — extracted and cross-referenced against findings |
+| **Runtime contracts** | Routes, hooks, env vars, config keys --- extracted and cross-referenced against findings |
 
 Every finding includes file path, line number, category, confidence level, and a
 suggested fix. False positive rates are driven down by contract-aware filtering
@@ -70,21 +97,21 @@ AigisCode runs a six-stage pipeline:
   dependencies    layers
 ```
 
-**1. Index** — Parses source files with tree-sitter (PHP, TypeScript, JavaScript, Vue) and Python AST. Stores files, symbols, dependencies, and semantic envelopes in a local SQLite database. Supports incremental re-indexing.
+**1. Index** --- Parses source files with tree-sitter (PHP, TypeScript, JavaScript, Vue) and Python AST. Stores files, symbols, dependencies, and semantic envelopes in a local SQLite database. Supports incremental re-indexing.
 
-**2. Graph** — Builds a file-level dependency graph with NetworkX. Computes circular dependencies (strong vs. total), coupling metrics, bottleneck files, layer violations, god classes, orphan files, and runtime entry candidates.
+**2. Graph** --- Builds a file-level dependency graph with NetworkX. Computes circular dependencies (strong vs. total), coupling metrics, bottleneck files, layer violations, god classes, orphan files, and runtime entry candidates.
 
-**3. Detect** — Runs generic detector passes for dead code and hardwiring. Detectors emit candidates with confidence levels; they do not encode project-specific logic.
+**3. Detect** --- Runs generic detector passes for dead code and hardwiring. Detectors emit candidates with confidence levels; they do not encode project-specific logic.
 
-**4. Rules** — Applies saved exclusion rules from `.aigiscode/rules.json` to pre-filter known false positives. Rules are the durable memory of prior audits.
+**4. Rules** --- Applies saved exclusion rules from `.aigiscode/rules.json` to pre-filter known false positives. Rules are the durable memory of prior audits.
 
-**5. AI Review** — Sends a sample of remaining findings to an AI backend (OpenAI Codex or Anthropic Claude) for classification as `true_positive`, `false_positive`, or `needs_context`. Proposes new exclusion rules from confirmed false positives.
+**5. AI Review** --- Sends a sample of remaining findings to an AI backend (OpenAI Codex or Anthropic Claude) for classification as `true_positive`, `false_positive`, or `needs_context`. Proposes new exclusion rules from confirmed false positives.
 
-**6. Report** — Generates a structured JSON report and a human-readable Markdown summary. Includes a contract inventory (routes, hooks, env keys, config keys) and full metric breakdowns.
+**6. Report** --- Generates a structured JSON report and a human-readable Markdown summary. Includes a contract inventory (routes, hooks, env keys, config keys) and full metric breakdowns.
 
 ## Supported Languages
 
-| Language | Index | Dead Code | Hardwiring | Parser |
+| Language | Index | Dead Code Detection | Hardwiring Detection | Parser |
 |---|:---:|:---:|:---:|---|
 | PHP | yes | yes | yes | tree-sitter |
 | Python | yes | yes | yes | Python AST |
@@ -120,10 +147,45 @@ Key flags:
 -v / --verbose                Enable debug logging
 ```
 
+## For AI Agents
+
+AigisCode is designed to be consumed by AI coding agents as evaluation
+infrastructure. The primary machine interface is the JSON report:
+
+```
+.aigiscode/aigiscode-report.json
+```
+
+It contains structured data for every finding category, metric, and contract
+inventory --- ready for downstream planning, triage, and automated remediation
+without parsing prose.
+
+### Recommended Agent Workflow
+
+1. Run `aigiscode analyze /repo` --- generate baseline report
+2. Parse `.aigiscode/aigiscode-report.json` --- read structured findings
+3. Sample findings and classify (true positive / false positive / uncertain)
+4. Encode narrow policy for repeated false positives in `.aigiscode/policy.json`
+5. Run `aigiscode report /repo` --- fast re-evaluation after policy changes
+6. Run `aigiscode tune /repo -i 2` --- optional AI-guided policy refinement
+
+### Key JSON Fields for Agents
+
+| JSON Path | Description |
+|---|---|
+| `graph_analysis.strong_circular_dependencies` | Architectural cycle triage |
+| `graph_analysis.circular_dependencies` | Broader runtime context |
+| `dead_code` | Unused imports, methods, properties, classes |
+| `hardwiring` | Magic strings, repeated literals, hardcoded network |
+| `extensions.contract_inventory` | Routes, hooks, env keys, config keys |
+
+See [docs/AI_AGENT_USAGE.md](docs/AI_AGENT_USAGE.md) for the full agent
+integration guide.
+
 ## Configuration
 
 AigisCode is policy-driven. Instead of hard-coding project-specific behavior
-into the analyzer, you express it through a JSON policy file with four sections:
+into the analyzer, express it through a JSON policy file:
 
 ```json
 {
@@ -184,48 +246,18 @@ def refine_dead_code_result(dead_code_result, store, project_path, policy):
 aigiscode analyze /repo --plugin-module ./my_plugin.py
 ```
 
-## For AI Agents
-
-AigisCode is designed to be consumed by other AI agents, not just humans.
-
-The primary machine interface is the JSON report:
-
-```
-.aigiscode/aigiscode-report.json
-```
-
-It contains structured data for every finding category, metric, and contract
-inventory — ready for downstream planning, triage, and automated remediation
-without parsing prose.
-
-Recommended agent workflow:
-
-1. `aigiscode analyze /repo` — generate baseline
-2. Read `.aigiscode/aigiscode-report.json` — parse structured findings
-3. Sample findings and classify (true positive / false positive / uncertain)
-4. Encode narrow policy for repeated false positives
-5. `aigiscode report /repo` — fast re-evaluation after policy changes
-6. `aigiscode tune /repo -i 2` — optional AI-guided policy refinement
-
-Key JSON fields for agents:
-
-- `graph_analysis.strong_circular_dependencies` — architectural cycle triage
-- `graph_analysis.circular_dependencies` — broader runtime context
-- `dead_code` — unused imports, methods, properties, classes
-- `hardwiring` — magic strings, repeated literals, hardcoded network
-- `extensions.contract_inventory` — routes, hooks, env keys, config keys
-
-See [docs/AI_AGENT_USAGE.md](docs/AI_AGENT_USAGE.md) for the full agent integration guide.
+See [docs/PLUGIN_SYSTEM.md](docs/PLUGIN_SYSTEM.md) for the full plugin
+documentation.
 
 ## Architecture
 
 The system separates generic analysis from project-specific interpretation
 across four layers of responsibility:
 
-1. **Index and graph construction** — generic, language-aware parsing
-2. **Generic detectors** — emit candidates, not verdicts
-3. **Policy and exclusion rules** — project-specific adaptation
-4. **AI review and tuning** — final-stage classification
+1. **Index and graph construction** --- generic, language-aware parsing
+2. **Generic detectors** --- emit candidates, not verdicts
+3. **Policy and exclusion rules** --- project-specific adaptation
+4. **AI review and tuning** --- final-stage classification
 
 Design principles: decoupling over convenience, explainable heuristics over
 opaque model-only decisions, partial but explicit coverage over false certainty.
@@ -241,7 +273,7 @@ Core dependencies: tree-sitter, NetworkX, Pydantic, Typer, Rich.
 
 ## Contributing
 
-Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
 guidelines on development setup, testing, and pull request conventions.
 
 Before patching the analyzer core, consider whether the issue can be expressed
@@ -256,5 +288,5 @@ in policy.
 ---
 
 <p align="center">
-  <sub>AigisCode — your codebase's shield against architectural decay.</sub>
+  <sub>AigisCode --- your codebase's shield against architectural decay.</sub>
 </p>
