@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "languages": "Langages",
+    "getStarted": "Commencer",
+    "docs": "Documentation"
+  },
+  "hero": {
+    "title1": "Votre code mérite",
+    "title2": "un gardien",
+    "subtitle": "Analyse statique propulsée par l'IA qui surveille l'ensemble de votre codebase — code mort, dépendances circulaires et problèmes d'architecture.",
+    "cta1": "Commencer",
+    "cta2": "Voir sur GitHub",
+    "install": "pip install aigiscode"
+  },
+  "trustedBy": {
+    "title": "Analyse du code écrit en"
+  },
+  "features": {
+    "title": "Tout ce dont votre code a besoin",
+    "subtitle": "Six détecteurs puissants travaillant ensemble pour garder votre code propre, maintenable et architecturalement sain.",
+    "circular": {
+      "title": "Dépendances circulaires",
+      "description": "Détectez les cycles architecturaux entre modules qui créent un couplage fort et rendent le refactoring risqué."
+    },
+    "deadCode": {
+      "title": "Détection de code mort",
+      "description": "Trouvez les imports inutilisés, classes abandonnées, méthodes inaccessibles et fichiers orphelins dans tout votre projet."
+    },
+    "hardwiring": {
+      "title": "Détection de valeurs en dur",
+      "description": "Repérez les chaînes magiques, littéraux répétés, adresses IP codées en dur et appels d'environnement hors fichiers de config."
+    },
+    "aiReview": {
+      "title": "Revue assistée par IA",
+      "description": "L'IA classe les résultats en vrais positifs, faux positifs ou nécessitant du contexte — réduisant le bruit pour se concentrer sur les vrais problèmes."
+    },
+    "policy": {
+      "title": "Analyse pilotée par politiques",
+      "description": "Personnalisez le comportement par projet avec des politiques en couches. Plugins intégrés pour Laravel, Django et WordPress."
+    },
+    "multiLang": {
+      "title": "Support multi-langages",
+      "description": "Analysez PHP, Python, TypeScript, JavaScript et Vue en une seule passe avec des graphes de dépendances unifiés."
+    }
+  },
+  "pipeline": {
+    "title": "Comment ça marche",
+    "subtitle": "Six étapes, une commande. Du code source brut aux recommandations concrètes.",
+    "stages": {
+      "index": {
+        "title": "Indexation",
+        "description": "Analyse des fichiers, extraction des symboles, stockage en SQLite"
+      },
+      "graph": {
+        "title": "Graphe",
+        "description": "Construction du graphe de dépendances, calcul des métriques"
+      },
+      "detect": {
+        "title": "Détection",
+        "description": "Exécution des détecteurs de code mort et valeurs en dur"
+      },
+      "rules": {
+        "title": "Règles",
+        "description": "Application des règles d'exclusion des revues précédentes"
+      },
+      "review": {
+        "title": "Revue IA",
+        "description": "L'IA classe les résultats restants pour plus de précision"
+      },
+      "report": {
+        "title": "Rapport",
+        "description": "Génération de rapports Markdown et JSON"
+      }
+    }
+  },
+  "cta": {
+    "title": "Commencez à protéger votre code",
+    "subtitle": "Une commande pour analyser tout votre projet. Open source, gratuit pour toujours.",
+    "button": "Commencer"
+  },
+  "footer": {
+    "tagline": "Gardien de code propulsé par l'IA. Open source, gratuit pour toujours.",
+    "product": "Produit",
+    "features": "Fonctionnalités",
+    "docs": "Documentation",
+    "changelog": "Journal des modifications",
+    "community": "Communauté",
+    "contributing": "Contribuer",
+    "issues": "Problèmes",
+    "legal": "Mentions légales",
+    "license": "Licence MIT",
+    "codeOfConduct": "Code de conduite",
+    "rights": "Open source sous licence MIT.",
+    "motto": "Construit avec l'IA, gardé par la mythologie."
+  },
+  "meta": {
+    "title": "AigisCode — Gardien de code propulsé par l'IA",
+    "description": "Analyse statique propulsée par l'IA qui surveille tout votre code. Code mort, dépendances circulaires, problèmes d'architecture. Open source."
+  }
+}

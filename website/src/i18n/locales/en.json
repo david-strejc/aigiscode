@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "features": "Features",
+    "howItWorks": "How It Works",
+    "languages": "Languages",
+    "getStarted": "Get Started",
+    "docs": "Documentation"
+  },
+  "hero": {
+    "title1": "Your Code Deserves",
+    "title2": "a Guardian",
+    "subtitle": "AI-powered static analysis that watches your entire codebase for dead code, circular dependencies, and architectural issues.",
+    "cta1": "Get Started",
+    "cta2": "View on GitHub",
+    "install": "pip install aigiscode"
+  },
+  "trustedBy": {
+    "title": "Analyzes codebases written in"
+  },
+  "features": {
+    "title": "Everything Your Codebase Needs",
+    "subtitle": "Six powerful detectors working together to keep your code clean, maintainable, and architecturally sound.",
+    "circular": {
+      "title": "Circular Dependencies",
+      "description": "Detect architectural cycles between modules that create tight coupling and make refactoring dangerous."
+    },
+    "deadCode": {
+      "title": "Dead Code Detection",
+      "description": "Find unused imports, abandoned classes, unreachable methods, and orphan files across your entire project."
+    },
+    "hardwiring": {
+      "title": "Hardwiring Detection",
+      "description": "Catch magic strings, repeated literals, hardcoded IPs, and environment calls outside config files."
+    },
+    "aiReview": {
+      "title": "AI-Assisted Review",
+      "description": "AI classifies findings as true positives, false positives, or needs-context — reducing noise so you focus on real issues."
+    },
+    "policy": {
+      "title": "Policy-Driven Analysis",
+      "description": "Customize behavior per project with layered policies. Built-in plugins for Laravel, Django, and WordPress."
+    },
+    "multiLang": {
+      "title": "Multi-Language Support",
+      "description": "Analyze PHP, Python, TypeScript, JavaScript, and Vue files in a single pass with unified dependency graphs."
+    }
+  },
+  "pipeline": {
+    "title": "How It Works",
+    "subtitle": "Six stages, one command. From raw source code to actionable insights.",
+    "stages": {
+      "index": {
+        "title": "Index",
+        "description": "Parse files, extract symbols, store in SQLite"
+      },
+      "graph": {
+        "title": "Graph",
+        "description": "Build file-level dependency graph, compute metrics"
+      },
+      "detect": {
+        "title": "Detect",
+        "description": "Run dead-code and hardwiring detector passes"
+      },
+      "rules": {
+        "title": "Rules",
+        "description": "Apply saved exclusion rules from prior reviews"
+      },
+      "review": {
+        "title": "AI Review",
+        "description": "AI classifies remaining findings for accuracy"
+      },
+      "report": {
+        "title": "Report",
+        "description": "Generate Markdown and JSON reports"
+      }
+    }
+  },
+  "cta": {
+    "title": "Start Guarding Your Code",
+    "subtitle": "One command to analyze your entire codebase. Open source, forever free.",
+    "button": "Get Started"
+  },
+  "footer": {
+    "tagline": "AI-powered code guardian. Open source, forever free.",
+    "product": "Product",
+    "features": "Features",
+    "docs": "Documentation",
+    "changelog": "Changelog",
+    "community": "Community",
+    "contributing": "Contributing",
+    "issues": "Issues",
+    "legal": "Legal",
+    "license": "MIT License",
+    "codeOfConduct": "Code of Conduct",
+    "rights": "Open source under MIT License.",
+    "motto": "Built with AI, guarded by mythology."
+  },
+  "meta": {
+    "title": "AigisCode — AI-Powered Code Guardian",
+    "description": "AI-powered static analysis that watches your entire codebase for dead code, circular dependencies, and architectural issues. Open source."
+  }
+}

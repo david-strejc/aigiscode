@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "features": "Características",
+    "howItWorks": "Cómo funciona",
+    "languages": "Lenguajes",
+    "getStarted": "Empezar",
+    "docs": "Documentación"
+  },
+  "hero": {
+    "title1": "Tu código merece",
+    "title2": "un guardián",
+    "subtitle": "Análisis estático impulsado por IA que vigila todo tu código — código muerto, dependencias circulares y problemas de arquitectura.",
+    "cta1": "Empezar",
+    "cta2": "Ver en GitHub",
+    "install": "pip install aigiscode"
+  },
+  "trustedBy": {
+    "title": "Analiza código escrito en"
+  },
+  "features": {
+    "title": "Todo lo que tu código necesita",
+    "subtitle": "Seis detectores potentes trabajando juntos para mantener tu código limpio, mantenible y arquitectónicamente sólido.",
+    "circular": {
+      "title": "Dependencias circulares",
+      "description": "Detecta ciclos arquitectónicos entre módulos que crean acoplamiento fuerte y hacen peligroso el refactoring."
+    },
+    "deadCode": {
+      "title": "Detección de código muerto",
+      "description": "Encuentra imports no usados, clases abandonadas, métodos inalcanzables y archivos huérfanos en todo tu proyecto."
+    },
+    "hardwiring": {
+      "title": "Detección de valores fijos",
+      "description": "Captura cadenas mágicas, literales repetidos, IPs codificadas y llamadas a entorno fuera de archivos de configuración."
+    },
+    "aiReview": {
+      "title": "Revisión asistida por IA",
+      "description": "La IA clasifica hallazgos como verdaderos positivos, falsos positivos o que necesitan contexto — reduciendo ruido para enfocarte en problemas reales."
+    },
+    "policy": {
+      "title": "Análisis dirigido por políticas",
+      "description": "Personaliza el comportamiento por proyecto con políticas en capas. Plugins integrados para Laravel, Django y WordPress."
+    },
+    "multiLang": {
+      "title": "Soporte multi-lenguaje",
+      "description": "Analiza archivos PHP, Python, TypeScript, JavaScript y Vue en una sola pasada con grafos de dependencias unificados."
+    }
+  },
+  "pipeline": {
+    "title": "Cómo funciona",
+    "subtitle": "Seis etapas, un comando. Del código fuente a información accionable.",
+    "stages": {
+      "index": {
+        "title": "Indexar",
+        "description": "Parsear archivos, extraer símbolos, almacenar en SQLite"
+      },
+      "graph": {
+        "title": "Grafo",
+        "description": "Construir grafo de dependencias a nivel de archivo, calcular métricas"
+      },
+      "detect": {
+        "title": "Detectar",
+        "description": "Ejecutar detectores de código muerto y valores fijos"
+      },
+      "rules": {
+        "title": "Reglas",
+        "description": "Aplicar reglas de exclusión de revisiones anteriores"
+      },
+      "review": {
+        "title": "Revisión IA",
+        "description": "La IA clasifica hallazgos restantes para mayor precisión"
+      },
+      "report": {
+        "title": "Reporte",
+        "description": "Generar reportes en Markdown y JSON"
+      }
+    }
+  },
+  "cta": {
+    "title": "Empieza a proteger tu código",
+    "subtitle": "Un comando para analizar todo tu proyecto. Código abierto, gratis para siempre.",
+    "button": "Empezar"
+  },
+  "footer": {
+    "tagline": "Guardián de código impulsado por IA. Código abierto, gratis para siempre.",
+    "product": "Producto",
+    "features": "Características",
+    "docs": "Documentación",
+    "changelog": "Registro de cambios",
+    "community": "Comunidad",
+    "contributing": "Contribuir",
+    "issues": "Problemas",
+    "legal": "Legal",
+    "license": "Licencia MIT",
+    "codeOfConduct": "Código de conducta",
+    "rights": "Código abierto bajo licencia MIT.",
+    "motto": "Construido con IA, custodiado por la mitología."
+  },
+  "meta": {
+    "title": "AigisCode — Guardián de código impulsado por IA",
+    "description": "Análisis estático impulsado por IA que vigila todo tu código. Código muerto, dependencias circulares, problemas de arquitectura. Código abierto."
+  }
+}

@@ -12,6 +12,8 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
   },

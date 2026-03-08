@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "features": "Funkce",
+    "howItWorks": "Jak to funguje",
+    "languages": "Jazyky",
+    "getStarted": "Začít",
+    "docs": "Dokumentace"
+  },
+  "hero": {
+    "title1": "Váš kód si zaslouží",
+    "title2": "strážce",
+    "subtitle": "Statická analýza poháněná AI, která hlídá celý váš kód — mrtvý kód, cyklické závislosti a architektonické problémy.",
+    "cta1": "Začít",
+    "cta2": "Zobrazit na GitHubu",
+    "install": "pip install aigiscode"
+  },
+  "trustedBy": {
+    "title": "Analyzuje kód napsaný v"
+  },
+  "features": {
+    "title": "Vše, co váš kód potřebuje",
+    "subtitle": "Šest výkonných detektorů spolupracuje, aby udrželo váš kód čistý, udržitelný a architektonicky zdravý.",
+    "circular": {
+      "title": "Cyklické závislosti",
+      "description": "Odhalte architektonické cykly mezi moduly, které vytvářejí těsnou provázanost a ztěžují refaktoring."
+    },
+    "deadCode": {
+      "title": "Detekce mrtvého kódu",
+      "description": "Najděte nepoužívané importy, opuštěné třídy, nedosažitelné metody a osiřelé soubory napříč celým projektem."
+    },
+    "hardwiring": {
+      "title": "Detekce hardcodingu",
+      "description": "Zachyťte magické řetězce, opakované literály, hardcodované IP adresy a volání prostředí mimo konfigurační soubory."
+    },
+    "aiReview": {
+      "title": "AI asistované review",
+      "description": "AI klasifikuje nálezy jako skutečné problémy, falešné poplachy nebo vyžadující kontext — snižuje šum, abyste se soustředili na skutečné problémy."
+    },
+    "policy": {
+      "title": "Analýza řízená politikami",
+      "description": "Přizpůsobte chování pro každý projekt pomocí vrstvených politik. Vestavěné pluginy pro Laravel, Django a WordPress."
+    },
+    "multiLang": {
+      "title": "Podpora více jazyků",
+      "description": "Analyzujte PHP, Python, TypeScript, JavaScript a Vue soubory v jednom průchodu s jednotným grafem závislostí."
+    }
+  },
+  "pipeline": {
+    "title": "Jak to funguje",
+    "subtitle": "Šest fází, jeden příkaz. Od zdrojového kódu k praktickým poznatkům.",
+    "stages": {
+      "index": {
+        "title": "Indexace",
+        "description": "Parsování souborů, extrakce symbolů, uložení do SQLite"
+      },
+      "graph": {
+        "title": "Graf",
+        "description": "Sestavení grafu závislostí na úrovni souborů, výpočet metrik"
+      },
+      "detect": {
+        "title": "Detekce",
+        "description": "Spuštění detektorů mrtvého kódu a hardcodingu"
+      },
+      "rules": {
+        "title": "Pravidla",
+        "description": "Aplikace uložených vylučovacích pravidel z předchozích review"
+      },
+      "review": {
+        "title": "AI Review",
+        "description": "AI klasifikuje zbývající nálezy pro přesnost"
+      },
+      "report": {
+        "title": "Report",
+        "description": "Generování Markdown a JSON reportů"
+      }
+    }
+  },
+  "cta": {
+    "title": "Začněte chránit svůj kód",
+    "subtitle": "Jeden příkaz pro analýzu celého vašeho projektu. Open source, navždy zdarma.",
+    "button": "Začít"
+  },
+  "footer": {
+    "tagline": "AI strážce kódu. Open source, navždy zdarma.",
+    "product": "Produkt",
+    "features": "Funkce",
+    "docs": "Dokumentace",
+    "changelog": "Historie změn",
+    "community": "Komunita",
+    "contributing": "Přispívání",
+    "issues": "Problémy",
+    "legal": "Právní",
+    "license": "MIT Licence",
+    "codeOfConduct": "Kodex chování",
+    "rights": "Open source pod MIT licencí.",
+    "motto": "Vytvořeno s AI, střeženo mytologií."
+  },
+  "meta": {
+    "title": "AigisCode — AI strážce kódu",
+    "description": "Statická analýza poháněná AI, která hlídá celý váš kód. Mrtvý kód, cyklické závislosti, architektonické problémy. Open source."
+  }
+}
