@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.aigiscode/
+dist/
+*.egg-info/
+.venv/
+node_modules/
+website/dist/
+.env
+uv.lock
