@@ -2,7 +2,9 @@
 
 ## Backlog
 - [ ] Extend Rust-specific external analysis using a large reference workspace: evaluate `cargo-audit` vs `osv-scanner` overlap for Rust SCA, decide whether `cargo-geiger` adds enough value as an optional unsafe-surface signal, and tune defaults around the shipped `cargo-deny`/`cargo-clippy` integrations.
-- [ ] Calibrate Rust audit coverage against `zed`, using the cloned workspace baseline (`1725` supported source files, `1706` Rust files, `60695` symbols, `41722` dependencies after the first-pass Rust extractor) to improve Rust SCA, lint, and architecture fidelity.
+- [ ] Calibrate Rust detector fidelity against `zed`: after enabling native Rust dead-code/hardwiring support, the real report now shows `3822` dead-code findings and `901` hardwiring findings on the current clone (`1725` files, `1706` Rust files, `60695` symbols, `41722` dependencies). Reduce obvious noise before trusting those counts as actionability signals.
+- [ ] Fix `analyze --skip-synthesis` so it actually skips Phase 3 semantic-envelope generation; the flag was ignored during real `../zed` runs on March 11, 2026.
+- [ ] Make semantic-envelope generation scale for large repos like `../zed`; the live run only advanced a few files after minutes, which blocks end-to-end AI synthesis on real Rust-heavy codebases.
 - [ ] Add end-to-end coverage for AI review/report serialization using a reproducible local backend harness instead of stubs.
 - [ ] Evaluate optional integration points for Semgrep, CodeQL, gitleaks/trufflehog, and dependency vulnerability scanners.
 - [ ] Rename remaining internal/backend identifiers that still say `codex_sdk` even though the Python path uses the OpenAI Responses API directly.
@@ -39,6 +41,8 @@
 ## Blocked
 
 ## Done
+- [x] Add first-class Rust dead-code and hardwiring detection so Rust no longer shows up as detector partial coverage in standard AigisCode reports
+- [x] Run a real AI-backed evaluation on `../zed`, capture the resulting report/handoff, and verify what AigisCode currently concludes about the Rust reference workspace
 - [x] Add first-pass Rust symbol and dependency extraction so indexed `.rs` files contribute basic graph analysis and import coverage
 - [x] Add `cargo-deny` as a first-class external analyzer for Rust advisories/licenses/bans/sources and normalize its findings into AigisCode reports
 - [x] Add `cargo-clippy` as a first-class external analyzer for Rust workspaces

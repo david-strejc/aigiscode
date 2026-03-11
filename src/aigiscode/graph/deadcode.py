@@ -23,7 +23,7 @@ from aigiscode.policy.models import DeadCodePolicy
 
 logger = logging.getLogger(__name__)
 SUPPORTED_DEAD_CODE_LANGUAGES = frozenset(
-    {"php", "python", "javascript", "typescript", "vue"}
+    {"php", "python", "javascript", "typescript", "vue", "rust"}
 )
 _TS_LIKE_LANGUAGES = frozenset({"javascript", "typescript", "vue"})
 
@@ -74,6 +74,15 @@ class JSImportBinding:
     source: str
     line: int
     type_only: bool = False
+
+
+@dataclass(frozen=True)
+class RustImportBinding:
+    """A bound import name inside a Rust file."""
+
+    name: str
+    target: str
+    line: int
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +171,7 @@ def find_unused_imports(
     )
     findings.extend(_find_unused_python_imports(store))
     findings.extend(_find_unused_ts_like_imports(store))
+    findings.extend(_find_unused_rust_imports(store))
     return findings
 
 
@@ -265,6 +275,62 @@ def _find_unused_python_imports(store: IndexStore) -> list[DeadCodeFinding]:
     return findings
 
 
+def _find_unused_rust_imports(store: IndexStore) -> list[DeadCodeFinding]:
+    """Find Rust ``use`` bindings that are never referenced."""
+    findings: list[DeadCodeFinding] = []
+
+    rows = store.conn.execute(
+        """
+        SELECT path
+        FROM files
+        WHERE language = 'rust'
+        ORDER BY path
+        """
+    ).fetchall()
+
+    parser = _get_tree_sitter_parser("rust")
+    if parser is None:
+        return findings
+
+    for row in rows:
+        file_path = row["path"]
+        if _is_test_like_path(file_path):
+            continue
+
+        content = _read_file_safe(store, file_path)
+        if content is None or not content.strip():
+            continue
+
+        try:
+            tree = parser.parse(content.encode("utf-8"))
+        except Exception:
+            continue
+
+        bindings = _collect_rust_import_bindings(tree.root_node)
+        if not bindings:
+            continue
+        used_names = _collect_rust_used_identifiers(tree.root_node)
+
+        for binding in bindings:
+            if binding.name in used_names:
+                continue
+            findings.append(
+                DeadCodeFinding(
+                    file_path=file_path,
+                    line=binding.line,
+                    category="unused_import",
+                    name=binding.target,
+                    detail=(
+                        f"Import '{binding.name}' from '{binding.target}' "
+                        "is never referenced"
+                    ),
+                    confidence="high",
+                )
+            )
+
+    return findings
+
+
 def _find_unused_ts_like_imports(store: IndexStore) -> list[DeadCodeFinding]:
     """Find unused imports in JS/TS/Vue source files."""
     findings: list[DeadCodeFinding] = []
@@ -304,7 +370,7 @@ def _find_unused_ts_like_imports(store: IndexStore) -> list[DeadCodeFinding]:
                 )
             continue
 
-        parser_language = "typescript" if language == "typescript" else "javascript"
+        parser_language = _ts_like_parser_language(file_path, language)
         findings.extend(
             _analyze_ts_like_unused_imports(
                 file_path,
@@ -317,6 +383,12 @@ def _find_unused_ts_like_imports(store: IndexStore) -> list[DeadCodeFinding]:
         )
 
     return findings
+
+
+def _ts_like_parser_language(file_path: str, language: str) -> str:
+    if language == "typescript" and file_path.endswith(".tsx"):
+        return "tsx"
+    return "typescript" if language == "typescript" else "javascript"
 
 
 def _analyze_ts_like_unused_imports(
@@ -433,6 +505,13 @@ def find_unused_private_methods(store: IndexStore) -> list[DeadCodeFinding]:
                         r"\bthis\.#" + re.escape(name) + r"\b",
                     ]
                 )
+            elif language == "rust":
+                patterns.extend(
+                    [
+                        r"\.\s*" + re.escape(name) + r"\s*\(",
+                        r"::" + re.escape(name) + r"\s*\(",
+                    ]
+                )
             if is_property_style_accessor:
                 patterns.extend(
                     [
@@ -520,6 +599,11 @@ def find_unused_private_properties(store: IndexStore) -> list[DeadCodeFinding]:
                 patterns = [
                     r"\bthis\." + re.escape(name) + r"\b",
                     r"\bthis\.#" + re.escape(name) + r"\b",
+                ]
+            elif language == "rust":
+                patterns = [
+                    r"\." + re.escape(name) + r"\b(?!\s*\()",
+                    r"\b" + re.escape(name) + r"\s*:",
                 ]
             else:
                 patterns = [
@@ -617,7 +701,7 @@ def find_abandoned_classes(
     # All class-level symbols
     classes = store.conn.execute(
         f"""
-        SELECT s.id, s.name, s.namespace, s.type, s.line_start,
+        SELECT s.id, s.name, s.namespace, s.type, s.visibility, s.line_start,
                f.path, f.id AS file_id, f.language
         FROM symbols s
         JOIN files f ON f.id = s.file_id
@@ -667,6 +751,7 @@ def find_abandoned_classes(
             known_class_tokens=known_class_tokens,
         )
     )
+    rust_type_references = _collect_rust_type_reference_map(store)
 
     entry_patterns = [*_DEFAULT_ENTRY_POINT_PATTERNS, *(extra_entry_patterns or [])]
     dynamic_patterns = [
@@ -689,6 +774,8 @@ def find_abandoned_classes(
     for cls in classes:
         language = str(cls["language"]).lower()
         if language not in allowed_language_set:
+            continue
+        if language == "rust" and str(cls["visibility"]).lower() != "public":
             continue
 
         fqcn = f"{cls['namespace']}\\{cls['name']}" if cls["namespace"] else cls["name"]
@@ -734,6 +821,10 @@ def find_abandoned_classes(
 
         if self_deps and self_deps["cnt"] > 0:
             continue
+        if language == "rust":
+            referenced_paths = rust_type_references.get(short_name, set())
+            if any(path != cls["path"] for path in referenced_paths):
+                continue
 
         findings.append(
             DeadCodeFinding(
@@ -873,6 +964,117 @@ def _find_tree_child(node, type_name: str):
 
 def _find_tree_children(node, type_name: str) -> list:
     return [child for child in node.children if child.type == type_name]
+
+
+def _collect_rust_import_bindings(root_node) -> list[RustImportBinding]:
+    bindings: list[RustImportBinding] = []
+    seen: set[tuple[str, str, int]] = set()
+
+    def walk(node) -> None:
+        if node.type == "use_declaration":
+            statement = _node_text(node).strip()
+            if statement.startswith("use "):
+                for binding in _expand_rust_use_bindings(
+                    statement[4:].rstrip(";").strip(),
+                    line=node.start_point[0] + 1,
+                ):
+                    key = (binding.name, binding.target, binding.line)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    bindings.append(binding)
+            return
+
+        for child in node.children:
+            walk(child)
+
+    walk(root_node)
+    return bindings
+
+
+def _collect_rust_used_identifiers(root_node) -> set[str]:
+    used: set[str] = set()
+
+    def walk(node, in_use: bool = False) -> None:
+        current_in_use = in_use or node.type == "use_declaration"
+        if not current_in_use and node.type in {"identifier", "type_identifier"}:
+            text = _node_text(node)
+            if text:
+                used.add(text)
+        for child in node.children:
+            walk(child, current_in_use)
+
+    walk(root_node)
+    return used
+
+
+def _expand_rust_use_bindings(path: str, *, line: int) -> list[RustImportBinding]:
+    path = path.strip()
+    if not path:
+        return []
+    alias_match = re.search(r"\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$", path)
+    if alias_match:
+        target = path[: alias_match.start()].strip()
+        return [
+            RustImportBinding(
+                name=alias_match.group(1),
+                target=target.replace(" ", ""),
+                line=line,
+            )
+        ]
+    if "{" not in path:
+        normalized = path.replace(" ", "")
+        binding = normalized.rsplit("::", 1)[-1]
+        return [RustImportBinding(name=binding, target=normalized, line=line)]
+
+    brace_start = path.find("{")
+    brace_end = path.rfind("}")
+    if brace_start == -1 or brace_end == -1 or brace_end < brace_start:
+        normalized = path.replace(" ", "")
+        binding = normalized.rsplit("::", 1)[-1]
+        return [RustImportBinding(name=binding, target=normalized, line=line)]
+
+    prefix = path[:brace_start].rstrip(":").strip()
+    inner = path[brace_start + 1 : brace_end]
+    bindings: list[RustImportBinding] = []
+    for item in _split_rust_use_items(inner):
+        item = item.strip()
+        if not item or item == "*":
+            continue
+        if item == "self":
+            normalized = prefix.replace(" ", "")
+            bindings.append(
+                RustImportBinding(
+                    name=normalized.rsplit("::", 1)[-1],
+                    target=normalized,
+                    line=line,
+                )
+            )
+            continue
+        candidate = item
+        if prefix and not item.startswith(("crate::", "self::", "super::")):
+            candidate = f"{prefix}::{item}"
+        bindings.extend(_expand_rust_use_bindings(candidate, line=line))
+    return bindings
+
+
+def _split_rust_use_items(value: str) -> list[str]:
+    items: list[str] = []
+    current: list[str] = []
+    depth = 0
+    for char in value:
+        if char == "," and depth == 0:
+            items.append("".join(current).strip())
+            current = []
+            continue
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        current.append(char)
+    if current:
+        items.append("".join(current).strip())
+    return items
 
 
 def _collect_ts_import_bindings(root_node) -> list[JSImportBinding]:
@@ -1168,6 +1370,7 @@ def _is_test_like_path(path: str) -> bool:
         or any(part in {"test", "tests", "__tests__", "fixtures"} for part in parts)
         or normalized.endswith("test.php")
         or normalized.endswith("_test.py")
+        or normalized.endswith("_test.rs")
     )
 
 
@@ -1187,6 +1390,7 @@ def _line_contains_method_declaration(line: str, name: str) -> bool:
     patterns = (
         rf"\bfunction\s+{re.escape(name)}\s*\(",
         rf"\b(?:public|protected|private|static|async|abstract|final|readonly|get|set)\b[^\n{{;]*\b{re.escape(name)}\s*\(",
+        rf"\b(?:pub(?:\([^)]*\))?\s+)?fn\s+{re.escape(name)}\s*\(",
         rf"#{re.escape(name)}\s*\(",
     )
     return any(re.search(pattern, line) for pattern in patterns)
@@ -1214,6 +1418,13 @@ def _line_contains_property_declaration(line: str, name: str, language: str) -> 
             rf"#{re.escape(name)}\b",
         )
         return any(re.search(pattern, line) for pattern in patterns)
+    if language == "rust":
+        return bool(
+            re.search(
+                rf"\b(?:pub(?:\([^)]*\))?\s+)?{re.escape(name)}\s*:",
+                line,
+            )
+        )
     return bool(
         re.search(
             rf"\b(?:public|protected|private|var|static|readonly)\b[^\n;]*\${re.escape(name)}\b",
@@ -1226,9 +1437,12 @@ def _line_contains_type_declaration(line: str, name: str, symbol_type: str) -> b
     """Guard against stale class/interface/trait rows."""
     if not line:
         return False
-    return bool(
-        re.search(rf"\b{re.escape(str(symbol_type))}\s+{re.escape(name)}\b", line)
-    )
+    token = str(symbol_type)
+    if token == "class":
+        token = "struct"
+    elif token == "interface":
+        token = "trait"
+    return bool(re.search(rf"\b{re.escape(token)}\s+{re.escape(name)}\b", line))
 
 
 def _collect_dynamic_reference_tokens(
@@ -1296,6 +1510,22 @@ def _collect_runtime_string_class_references(
             _extract_runtime_php_string_class_references(content, known_class_tokens)
         )
     return tokens
+
+
+def _collect_rust_type_reference_map(store: IndexStore) -> dict[str, set[str]]:
+    """Collect PascalCase type references from Rust files keyed by short name."""
+    references: dict[str, set[str]] = defaultdict(set)
+    rows = store.conn.execute(
+        "SELECT path FROM files WHERE lower(language) = 'rust' ORDER BY path"
+    ).fetchall()
+    for row in rows:
+        path = row["path"]
+        content = _read_file_safe(store, path)
+        if content is None:
+            continue
+        for token in set(re.findall(r"\b[A-Z][A-Za-z0-9_]*\b", content)):
+            references[token].add(path)
+    return references
 
 
 def _extract_class_reference_tokens(content: str) -> set[str]:

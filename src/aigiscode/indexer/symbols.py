@@ -52,13 +52,25 @@ def _get_visibility(node: Node) -> Visibility:
     for child in node.children:
         if child.type == "visibility_modifier":
             text = _text(child).lower()
-            if text == "public":
+            if text in {"public", "pub"}:
                 return Visibility.PUBLIC
             elif text == "protected":
                 return Visibility.PROTECTED
             elif text == "private":
                 return Visibility.PRIVATE
     return Visibility.UNKNOWN
+
+
+def _get_rust_visibility(
+    node: Node,
+    *,
+    default: Visibility = Visibility.PRIVATE,
+) -> Visibility:
+    """Extract Rust visibility, defaulting to Rust's private-by-default semantics."""
+    modifier = _find_child(node, "visibility_modifier")
+    if modifier is None:
+        return default
+    return Visibility.PUBLIC if _text(modifier).startswith("pub") else default
 
 
 def _extract_namespace_name(node: Node) -> str:
@@ -1253,7 +1265,11 @@ def extract_rust_symbols(
     symbols: list[SymbolInfo] = []
     dependencies: list[DependencyInfo] = []
 
-    def walk(node: Node, current_owner: str | None = None) -> None:
+    def walk(
+        node: Node,
+        current_owner: str | None = None,
+        current_owner_kind: str | None = None,
+    ) -> None:
         if node.type == "use_declaration":
             for target_name in _expand_rust_use_paths(_text(node)[4:].rstrip(";").strip()):
                 dependencies.append(
@@ -1272,7 +1288,7 @@ def extract_rust_symbols(
                     SymbolInfo(
                         type=SymbolType.MODULE,
                         name=_text(name_node),
-                        visibility=_get_visibility(node),
+                        visibility=_get_rust_visibility(node),
                         line_start=node.start_point[0] + 1,
                         line_end=node.end_point[0] + 1,
                     )
@@ -1288,7 +1304,7 @@ def extract_rust_symbols(
                 SymbolInfo(
                     type=SymbolType.CLASS,
                     name=struct_name,
-                    visibility=_get_visibility(node),
+                    visibility=_get_rust_visibility(node),
                     line_start=node.start_point[0] + 1,
                     line_end=node.end_point[0] + 1,
                 )
@@ -1304,7 +1320,7 @@ def extract_rust_symbols(
                             type=SymbolType.PROPERTY,
                             name=_text(field_name),
                             namespace=struct_name,
-                            visibility=Visibility.PUBLIC,
+                            visibility=_get_rust_visibility(field),
                             line_start=field.start_point[0] + 1,
                             line_end=field.end_point[0] + 1,
                         )
@@ -1318,7 +1334,7 @@ def extract_rust_symbols(
                     SymbolInfo(
                         type=SymbolType.ENUM,
                         name=_text(name_node),
-                        visibility=_get_visibility(node),
+                        visibility=_get_rust_visibility(node),
                         line_start=node.start_point[0] + 1,
                         line_end=node.end_point[0] + 1,
                     )
@@ -1334,13 +1350,17 @@ def extract_rust_symbols(
                 SymbolInfo(
                     type=SymbolType.INTERFACE,
                     name=trait_name,
-                    visibility=_get_visibility(node),
+                    visibility=_get_rust_visibility(node),
                     line_start=node.start_point[0] + 1,
                     line_end=node.end_point[0] + 1,
                 )
             )
             for child in node.children:
-                walk(child, current_owner=trait_name)
+                walk(
+                    child,
+                    current_owner=trait_name,
+                    current_owner_kind="trait",
+                )
             return
 
         if node.type == "impl_item":
@@ -1363,7 +1383,11 @@ def extract_rust_symbols(
             elif identifiers:
                 target_name = identifiers[0]
             for child in node.children:
-                walk(child, current_owner=target_name)
+                walk(
+                    child,
+                    current_owner=target_name,
+                    current_owner_kind="impl",
+                )
             return
 
         if node.type in {"function_item", "function_signature_item"}:
@@ -1372,12 +1396,17 @@ def extract_rust_symbols(
                 return
             metadata = _extract_rust_function_metadata(node)
             symbol_type = SymbolType.METHOD if current_owner else SymbolType.FUNCTION
+            visibility = (
+                Visibility.PUBLIC
+                if current_owner_kind == "trait"
+                else _get_rust_visibility(node)
+            )
             symbols.append(
                 SymbolInfo(
                     type=symbol_type,
                     name=_text(name_node),
                     namespace=current_owner or None,
-                    visibility=_get_visibility(node),
+                    visibility=visibility,
                     line_start=node.start_point[0] + 1,
                     line_end=node.end_point[0] + 1,
                     metadata=metadata,
@@ -1386,7 +1415,11 @@ def extract_rust_symbols(
             return
 
         for child in node.children:
-            walk(child, current_owner=current_owner)
+            walk(
+                child,
+                current_owner=current_owner,
+                current_owner_kind=current_owner_kind,
+            )
 
     walk(root_node)
     dependencies = _dedupe_dependencies(dependencies)
@@ -1405,13 +1438,18 @@ def _extract_rust_function_metadata(node: Node) -> dict[str, object]:
         return metadata
 
     params: list[str] = []
+    has_self_parameter = False
     for child in params_node.children:
         if child.type in {"self_parameter", "parameter", "identifier"}:
             text = _text(child).strip()
             if text:
                 params.append(text)
+                if "self" in text:
+                    has_self_parameter = True
     if params:
         metadata["params"] = params
+    if has_self_parameter:
+        metadata["has_self_parameter"] = True
     return metadata
 
 
@@ -1450,13 +1488,13 @@ def _split_rust_use_items(value: str) -> list[str]:
     current: list[str] = []
     depth = 0
     for char in value:
-        if char == ',' and depth == 0:
+        if char == "," and depth == 0:
             items.append("".join(current).strip())
             current = []
             continue
-        if char == '{':
+        if char == "{":
             depth += 1
-        elif char == '}':
+        elif char == "}":
             depth -= 1
         current.append(char)
     if current:

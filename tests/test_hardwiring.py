@@ -63,6 +63,54 @@ def test_ruby_env_reads_are_reported_outside_config(tmp_path: Path) -> None:
     store.close()
 
 
+def test_rust_env_and_network_reads_are_reported_outside_config(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    store = _make_store(project_root)
+
+    _write(
+        project_root,
+        "src/runtime.rs",
+        'let api_key = std::env::var("API_KEY").unwrap();\n'
+        'if mode == "release" { let _ = "https://api.acme.test"; }\n',
+    )
+    store.insert_file(FileInfo(path="src/runtime.rs", language=Language.RUST, size=0))
+
+    result = analyze_hardwiring(store, policy=HardwiringPolicy())
+
+    assert any(
+        finding.file_path == "src/runtime.rs" for finding in result.env_outside_config
+    )
+    assert any(
+        finding.file_path == "src/runtime.rs" and finding.value == "release"
+        for finding in result.magic_strings
+    )
+    assert any(
+        finding.file_path == "src/runtime.rs"
+        and finding.value == "https://api.acme.test"
+        for finding in result.hardcoded_network
+    )
+    store.close()
+
+
+def test_rust_build_scripts_are_treated_as_tooling_for_env_reads(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    store = _make_store(project_root)
+
+    _write(
+        project_root,
+        "build.rs",
+        'let target = std::env::var("TARGET").unwrap();\n',
+    )
+    store.insert_file(FileInfo(path="build.rs", language=Language.RUST, size=0))
+
+    result = analyze_hardwiring(store, policy=HardwiringPolicy())
+
+    assert result.env_outside_config == []
+    store.close()
+
+
 def test_semver_literals_do_not_become_magic_strings(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     project_root.mkdir()

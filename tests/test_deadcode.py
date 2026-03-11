@@ -7,6 +7,7 @@ from aigiscode.graph.deadcode import (
     analyze_dead_code,
     find_abandoned_classes,
 )
+from aigiscode.indexer.parser import parse_file
 from aigiscode.indexer.store import IndexStore
 from aigiscode.models import (
     DependencyInfo,
@@ -30,6 +31,28 @@ def _write(project_root: Path, relative_path: str, content: str) -> None:
     path = project_root / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _index_parsed_file(
+    store: IndexStore,
+    project_root: Path,
+    relative_path: str,
+    language: Language,
+) -> int:
+    file_path = project_root / relative_path
+    symbols, dependencies = parse_file(
+        file_path,
+        language,
+        project_root=project_root,
+    )
+    file_id = store.insert_file(
+        FileInfo(path=relative_path, language=language, size=file_path.stat().st_size)
+    )
+    for symbol in symbols:
+        store.insert_symbol(symbol.model_copy(update={"file_id": file_id}))
+    for dependency in dependencies:
+        store.insert_dependency(dependency.model_copy(update={"source_file_id": file_id}))
+    return file_id
 
 
 def test_dead_code_skips_stale_index_rows(tmp_path: Path) -> None:
@@ -179,6 +202,44 @@ def test_abandoned_class_ignores_non_php_languages_by_default(tmp_path: Path) ->
     result = analyze_dead_code(store, policy=DeadCodePolicy())
 
     assert result.abandoned_classes == []
+    store.close()
+
+
+def test_rust_dead_code_detects_unused_imports_methods_properties_and_public_types(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    store = _make_store(project_root)
+
+    _write(
+        project_root,
+        "src/lib.rs",
+        "use crate::http::{Client as HttpClient, Server};\n"
+        "pub struct Service { cache: Cache, local: Local }\n"
+        "pub struct Exported {}\n"
+        "impl Service {\n"
+        "    pub fn run(&self) -> usize { let _ = self.helper(); self.local.len() }\n"
+        "    fn helper(&self) -> HttpClient { HttpClient::new() }\n"
+        "    fn stale(&self) {}\n"
+        "}\n",
+    )
+    _index_parsed_file(store, project_root, "src/lib.rs", Language.RUST)
+
+    _write(
+        project_root,
+        "src/consumer.rs",
+        "use crate::lib::Service;\n"
+        "pub fn consume(service: &Service) -> usize { service.run() }\n",
+    )
+    _index_parsed_file(store, project_root, "src/consumer.rs", Language.RUST)
+
+    result = analyze_dead_code(store, policy=DeadCodePolicy())
+
+    assert [finding.name for finding in result.unused_imports] == ["crate::http::Server"]
+    assert [finding.name for finding in result.unused_methods] == ["stale"]
+    assert [finding.name for finding in result.unused_properties] == ["cache"]
+    assert [finding.name for finding in result.abandoned_classes] == ["Exported"]
     store.close()
 
 
@@ -505,6 +566,39 @@ def test_ts_unused_imports_respect_object_shorthand_usage(tmp_path: Path) -> Non
 
     flagged_names = {finding.name for finding in result.unused_imports}
     assert flagged_names == {"WarningAlt"}
+    store.close()
+
+
+def test_tsx_unused_imports_respect_jsx_component_usage(tmp_path: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    store = _make_store(project_root)
+
+    _write(
+        project_root,
+        "resources/js/Navbar.tsx",
+        "import { Moon, Sun, List, X, Ghost } from '@phosphor-icons/react'\n"
+        "export function Navbar({ isDark, isMenuOpen }: { isDark: boolean; isMenuOpen: boolean }) {\n"
+        "    return (\n"
+        "        <div>\n"
+        "            {isDark ? <Sun /> : <Moon />}\n"
+        "            {isMenuOpen ? <X /> : <List className='w-6 h-6' />}\n"
+        "        </div>\n"
+        "    )\n"
+        "}\n",
+    )
+    store.insert_file(
+        FileInfo(
+            path="resources/js/Navbar.tsx",
+            language=Language.TYPESCRIPT,
+            size=0,
+        )
+    )
+
+    result = analyze_dead_code(store, policy=DeadCodePolicy())
+
+    flagged_names = {finding.name for finding in result.unused_imports}
+    assert flagged_names == {"Ghost"}
     store.close()
 
 

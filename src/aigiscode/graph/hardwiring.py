@@ -21,7 +21,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 SUPPORTED_HARDWIRING_LANGUAGES = frozenset(
-    {"php", "python", "ruby", "javascript", "typescript", "vue"}
+    {"php", "python", "ruby", "javascript", "typescript", "vue", "rust"}
+)
+HARDCODED_IP_URL_CATEGORY = "hardcoded_ip_url"
+_PRAGMA_DATABASE_LIST = "PRAGMA database_list"
+_TEST_LIKE_PATH_PARTS = frozenset({"test", "tests", "__tests__", "fixtures", "spec"})
+_TEST_LIKE_PATH_SUFFIXES = (
+    "test.php",
+    "_test.py",
+    "_test.rb",
+    "_spec.rb",
 )
 
 
@@ -64,7 +73,7 @@ def _apply_finding_plugins(
     findings: list[HardwiringFinding],
     *,
     category: str,
-    external_plugins: list["ExternalPlugin"] | None,
+    external_plugins: list[ExternalPlugin] | None,
     store: IndexStore,
     project_path: Path | None,
     policy: HardwiringPolicy,
@@ -209,6 +218,9 @@ _RE_PY_ENV = re.compile(r"\b(?:os\.getenv|os\.environ(?:\.get)?)\s*(?:\(|\[)")
 _RE_RB_ENV = re.compile(
     r"\b(?:ENV\.fetch\s*\(\s*['\"][A-Z][A-Z0-9_]*['\"]|ENV\s*\[\s*['\"][A-Z][A-Z0-9_]*['\"]\s*\])"
 )
+_RE_RUST_ENV = re.compile(
+    r"\b(?:(?:std::)?env::(?:var|var_os)\s*\(|(?:std::)?env!\s*\(|option_env!\s*\()"
+)
 _RE_CONST_DEF = re.compile(r"\bconst\s+\w+\s*=")
 _RE_DOCBLOCK = re.compile(r"^\s*\*")
 _RE_LOCALE_CODE = re.compile(r"^[a-z]{2}(?:[_-][A-Z]{2})?$")
@@ -266,7 +278,7 @@ _RE_CONTRACT_VARIABLE = re.compile(
     r"serializer|field|setting|option|attribute|attr|header|cookie))\b",
     re.IGNORECASE,
 )
-_ENTITY_CONTEXT_TOKEN_PATTERN = (
+_ENTITY_CONTEXT_MARKER_PATTERN = (
     r"(?:entity(?:Type|Types|Name)?|relatedEntity(?:Type)?|rootEntityType|"
     r"folderEntityType|parsedEntityType|parent(?:_type|Type|Entity)|"
     r"target(?:_type|Type|Entity)|source(?:_type|Type|Entity)|entity_types|"
@@ -274,12 +286,12 @@ _ENTITY_CONTEXT_TOKEN_PATTERN = (
     r"(?:->|::)?getEntityType\s*\(\))"
 )
 _RE_ENTITY_CONTEXT_DIRECT_PREFIX = re.compile(
-    rf"{_ENTITY_CONTEXT_TOKEN_PATTERN}[^\n]{{0,120}}"
+    rf"{_ENTITY_CONTEXT_MARKER_PATTERN}[^\n]{{0,120}}"
     rf"(?:===|!==|==|!=|=>|=|:|\?\?=|\?\?)\s*$",
     re.IGNORECASE,
 )
 _RE_ENTITY_CONTEXT_DIRECT_SUFFIX = re.compile(
-    rf"^\s*(?:===|!==|==|!=)\s*[^\n]{{0,120}}{_ENTITY_CONTEXT_TOKEN_PATTERN}",
+    rf"^\s*(?:===|!==|==|!=)\s*[^\n]{{0,120}}{_ENTITY_CONTEXT_MARKER_PATTERN}",
     re.IGNORECASE,
 )
 _RE_TEMPLATE_DIRECTIVE = re.compile(r"^\s*(?::|@|v-[a-z])", re.IGNORECASE)
@@ -351,7 +363,7 @@ def analyze_hardwiring(
     store: IndexStore,
     min_occurrences: int = 3,
     policy: HardwiringPolicy | None = None,
-    external_plugins: list["ExternalPlugin"] | None = None,
+    external_plugins: list[ExternalPlugin] | None = None,
     project_path: Path | None = None,
 ) -> HardwiringResult:
     """Run hardwiring analyses on supported indexed source files."""
@@ -367,7 +379,7 @@ def analyze_hardwiring(
         """
         SELECT id, path, language
         FROM files
-        WHERE language IN ('php', 'python', 'ruby', 'javascript', 'typescript', 'vue')
+        WHERE language IN ('php', 'python', 'ruby', 'javascript', 'typescript', 'vue', 'rust')
         """
     ).fetchall()
 
@@ -447,7 +459,7 @@ def analyze_hardwiring(
         result.hardcoded_network.extend(
             _apply_finding_plugins(
                 hardcoded_network,
-                category="hardcoded_ip_url",
+                category=HARDCODED_IP_URL_CATEGORY,
                 external_plugins=external_plugins,
                 store=store,
                 project_path=project_path,
@@ -755,7 +767,7 @@ def _find_hardcoded_network(file_path: str, content: str) -> list[HardwiringFind
                 HardwiringFinding(
                     file_path=file_path,
                     line=lineno,
-                    category="hardcoded_ip_url",
+                    category=HARDCODED_IP_URL_CATEGORY,
                     value=ip,
                     context=line.strip(),
                     severity="medium",
@@ -775,7 +787,7 @@ def _find_hardcoded_network(file_path: str, content: str) -> list[HardwiringFind
                 HardwiringFinding(
                     file_path=file_path,
                     line=lineno,
-                    category="hardcoded_ip_url",
+                    category=HARDCODED_IP_URL_CATEGORY,
                     value=url,
                     context=line.strip(),
                     severity=_classify_network_severity(url, line),
@@ -869,6 +881,23 @@ def _find_env_outside_config(
                     suggestion=(
                         "Route environment reads through a dedicated config object "
                         "instead of direct ENV access."
+                    ),
+                )
+            )
+            continue
+        if language == "rust" and _RE_RUST_ENV.search(line):
+            findings.append(
+                HardwiringFinding(
+                    file_path=file_path,
+                    line=lineno,
+                    category="env_outside_config",
+                    value="env",
+                    context=stripped,
+                    severity="high",
+                    confidence="high",
+                    suggestion=(
+                        "Route environment reads through a dedicated config layer "
+                        "instead of direct std::env/env! access."
                     ),
                 )
             )
@@ -996,7 +1025,7 @@ def _get_entity_type_names(store: IndexStore) -> set[str]:
 
 def _read_file_safe(store: IndexStore, relative_path: str) -> str | None:
     """Read a file from the project root, returning None on any failure."""
-    db_path = Path(store.conn.execute("PRAGMA database_list").fetchone()["file"])
+    db_path = Path(store.conn.execute(_PRAGMA_DATABASE_LIST).fetchone()["file"])
     project_root = db_path.parent.parent
     full_path = project_root / relative_path
     if not full_path.exists():
@@ -1088,13 +1117,8 @@ def _is_test_like_path(path: str) -> bool:
     parts = [part for part in normalized.split("/") if part]
     return (
         "test" in stem
-        or any(
-            part in {"test", "tests", "__tests__", "fixtures", "spec"} for part in parts
-        )
-        or normalized.endswith("test.php")
-        or normalized.endswith("_test.py")
-        or normalized.endswith("_test.rb")
-        or normalized.endswith("_spec.rb")
+        or any(part in _TEST_LIKE_PATH_PARTS for part in parts)
+        or normalized.endswith(_TEST_LIKE_PATH_SUFFIXES)
     )
 
 
@@ -1110,6 +1134,7 @@ def _is_build_tooling_path(path: str) -> bool:
         "vite.config.ts",
         "eslint.config.js",
         "rakefile",
+        "build.rs",
     }
     return filename in tooling_filenames or normalized.startswith("tools/")
 

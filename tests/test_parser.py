@@ -243,8 +243,22 @@ def test_parse_file_extracts_rust_symbols_and_dependencies(tmp_path: Path) -> No
         "run",
         "helper",
     }
-    assert any(symbol.name == "cache" and symbol.namespace == "Service" for symbol in symbols)
-    assert any(symbol.name == "run" and symbol.namespace == "Service" for symbol in symbols)
+    assert any(
+        symbol.name == "cache"
+        and symbol.namespace == "Service"
+        and symbol.visibility.value == "private"
+        for symbol in symbols
+    )
+    assert any(
+        symbol.name == "run"
+        and symbol.namespace == "Service"
+        and symbol.visibility.value == "public"
+        for symbol in symbols
+    )
+    assert any(
+        symbol.name == "helper" and symbol.visibility.value == "private"
+        for symbol in symbols
+    )
     assert any(dep.target_name == "crate::http::Client" for dep in dependencies)
     assert any(dep.target_name == "crate::http::Server" for dep in dependencies)
     assert any(dep.type == DependencyType.IMPLEMENT and dep.target_name == "Runner" for dep in dependencies)

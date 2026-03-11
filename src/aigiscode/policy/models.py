@@ -19,7 +19,7 @@ class DeadCodePolicy(BaseModel):
     """Dead-code detector behavior."""
 
     attribute_usage_names: list[str] = Field(default_factory=lambda: ["Override"])
-    abandoned_languages: list[str] = Field(default_factory=lambda: ["php"])
+    abandoned_languages: list[str] = Field(default_factory=lambda: ["php", "rust"])
     abandoned_entry_patterns: list[str] = Field(default_factory=list)
     abandoned_dynamic_reference_patterns: list[str] = Field(default_factory=list)
 

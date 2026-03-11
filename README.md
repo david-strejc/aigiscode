@@ -161,7 +161,7 @@ Imported external findings follow the same high-level contract:
 | JavaScript | yes | yes | yes | tree-sitter |
 | Vue | yes | yes | yes | tree-sitter |
 | Ruby | yes | -- | yes | tree-sitter |
-| Rust | yes | -- | -- | tree-sitter |
+| Rust | yes | yes | yes | tree-sitter |
 
 Detector coverage is reported explicitly. When a language is indexed but a
 detector does not yet support it, the report flags partial coverage instead of
