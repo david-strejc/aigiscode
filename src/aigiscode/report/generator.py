@@ -443,7 +443,20 @@ def generate_json_report(report: ReportData) -> dict:
     }
 
 
-def write_reports(report: ReportData, output_dir: Path) -> tuple[Path, Path]:
+def allocate_archive_stem(output_dir: Path, timestamp: str) -> str:
+    """Return a unique archive stem, appending _N if the directory already exists."""
+    archive_dir = output_dir / "reports"
+    candidate = timestamp
+    counter = 0
+    while (archive_dir / candidate).exists():
+        counter += 1
+        candidate = f"{timestamp}_{counter}"
+    return candidate
+
+
+def write_reports(
+    report: ReportData, output_dir: Path, archive_stem: str | None = None
+) -> tuple[Path, Path]:
     """Write both Markdown and JSON reports to the output directory.
 
     Returns (markdown_path, json_path).
@@ -453,13 +466,20 @@ def write_reports(report: ReportData, output_dir: Path) -> tuple[Path, Path]:
     md_path = output_dir / "aigiscode-report.md"
     json_path = output_dir / "aigiscode-report.json"
     archive_dir = output_dir / "reports"
-    timestamp = report.generated_at.strftime("%Y%m%d_%H%M%S")
-    archive_md_path = archive_dir / f"{timestamp}-aigiscode-report.md"
-    archive_json_path = archive_dir / f"{timestamp}-aigiscode-report.json"
+
+    if archive_stem:
+        stem_dir = archive_dir / archive_stem
+        stem_dir.mkdir(parents=True, exist_ok=True)
+        archive_md_path = stem_dir / "aigiscode-report.md"
+        archive_json_path = stem_dir / "aigiscode-report.json"
+    else:
+        timestamp = report.generated_at.strftime("%Y%m%d_%H%M%S")
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        archive_md_path = archive_dir / f"{timestamp}-aigiscode-report.md"
+        archive_json_path = archive_dir / f"{timestamp}-aigiscode-report.json"
 
     md_content = generate_markdown_report(report)
     md_path.write_text(md_content, encoding="utf-8")
-    archive_dir.mkdir(parents=True, exist_ok=True)
     archive_md_path.write_text(md_content, encoding="utf-8")
 
     json_content = generate_json_report(report)
@@ -472,7 +492,41 @@ def write_reports(report: ReportData, output_dir: Path) -> tuple[Path, Path]:
         encoding="utf-8",
     )
 
+    _write_handoff(report, output_dir)
+
     return md_path, json_path
+
+
+def _write_handoff(report: ReportData, output_dir: Path) -> None:
+    """Write agent handoff artifacts."""
+    handoff_json = output_dir / "aigiscode-handoff.json"
+    handoff_md = output_dir / "aigiscode-handoff.md"
+    ga = report.graph_analysis
+    summary = {
+        "project_path": report.project_path,
+        "files_indexed": report.files_indexed,
+        "symbols_extracted": report.symbols_extracted,
+        "circular_dependencies": len(ga.strong_circular_dependencies)
+        or len(ga.circular_dependencies),
+        "god_classes": len(ga.god_classes),
+        "layer_violations": len(ga.layer_violations),
+        "dead_code_total": report.dead_code.total if report.dead_code else 0,
+        "hardwiring_total": report.hardwiring.total if report.hardwiring else 0,
+    }
+    handoff_json.write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    lines = [
+        f"# AigisCode Handoff — {report.project_path}",
+        "",
+        f"- Files: {report.files_indexed}",
+        f"- Cycles: {summary['circular_dependencies']}",
+        f"- God classes: {summary['god_classes']}",
+        f"- Layer violations: {summary['layer_violations']}",
+        f"- Dead code: {summary['dead_code_total']}",
+        f"- Hardwiring: {summary['hardwiring_total']}",
+    ]
+    handoff_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _serialize_graph_analysis(ga) -> dict:
