@@ -438,6 +438,10 @@ def generate_json_report(report: ReportData) -> dict:
         else None,
         "security": _generate_security_summary(report),
         "review": _serialize_review(report.review) if report.review else None,
+        "external_analysis": _serialize_external_analysis(report.external_analysis)
+        if report.external_analysis
+        else None,
+        "agent_handoff": _generate_agent_handoff(report),
         "extensions": report.extensions,
         "recommendations": _generate_recommendations(report),
     }
@@ -473,6 +477,7 @@ def write_reports(
         archive_md_path = stem_dir / "aigiscode-report.md"
         archive_json_path = stem_dir / "aigiscode-report.json"
     else:
+        stem_dir = None
         timestamp = report.generated_at.strftime("%Y%m%d_%H%M%S")
         archive_dir.mkdir(parents=True, exist_ok=True)
         archive_md_path = archive_dir / f"{timestamp}-aigiscode-report.md"
@@ -483,21 +488,34 @@ def write_reports(
     archive_md_path.write_text(md_content, encoding="utf-8")
 
     json_content = generate_json_report(report)
-    json_path.write_text(
-        json.dumps(json_content, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    archive_json_path.write_text(
-        json.dumps(json_content, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    json_text = json.dumps(json_content, indent=2, ensure_ascii=False)
+    json_path.write_text(json_text, encoding="utf-8")
+    archive_json_path.write_text(json_text, encoding="utf-8")
 
-    _write_handoff(report, output_dir)
+    # Write flat-named archive copies for backward compat when using subdirectories
+    if archive_stem:
+        flat_archive_md = archive_dir / f"{archive_stem}-aigiscode-report.md"
+        flat_archive_json = archive_dir / f"{archive_stem}-aigiscode-report.json"
+        flat_archive_md.write_text(md_content, encoding="utf-8")
+        flat_archive_json.write_text(json_text, encoding="utf-8")
+
+    _write_handoff(report, output_dir, stem_dir=stem_dir)
+
+    # Write external-analysis.json to the archive subdirectory if present
+    if report.external_analysis and stem_dir is not None:
+        ea_text = json.dumps(
+            _serialize_external_analysis(report.external_analysis),
+            indent=2,
+            ensure_ascii=False,
+        )
+        (stem_dir / "external-analysis.json").write_text(ea_text, encoding="utf-8")
 
     return md_path, json_path
 
 
-def _write_handoff(report: ReportData, output_dir: Path) -> None:
+def _write_handoff(
+    report: ReportData, output_dir: Path, *, stem_dir: Path | None = None
+) -> None:
     """Write agent handoff artifacts."""
     handoff_json = output_dir / "aigiscode-handoff.json"
     handoff_md = output_dir / "aigiscode-handoff.md"
@@ -513,11 +531,12 @@ def _write_handoff(report: ReportData, output_dir: Path) -> None:
         "dead_code_total": report.dead_code.total if report.dead_code else 0,
         "hardwiring_total": report.hardwiring.total if report.hardwiring else 0,
     }
-    handoff_json.write_text(
-        json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    json_text = json.dumps(summary, indent=2, ensure_ascii=False)
+    handoff_json.write_text(json_text, encoding="utf-8")
     lines = [
         f"# AigisCode Handoff — {report.project_path}",
+        "",
+        "## Agent Handoff Brief",
         "",
         f"- Files: {report.files_indexed}",
         f"- Cycles: {summary['circular_dependencies']}",
@@ -526,7 +545,21 @@ def _write_handoff(report: ReportData, output_dir: Path) -> None:
         f"- Dead code: {summary['dead_code_total']}",
         f"- Hardwiring: {summary['hardwiring_total']}",
     ]
-    handoff_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    md_text = "\n".join(lines) + "\n"
+    handoff_md.write_text(md_text, encoding="utf-8")
+
+    # Write handoff to archive subdirectory + flat copies
+    if stem_dir is not None:
+        stem_dir.mkdir(parents=True, exist_ok=True)
+        (stem_dir / "aigiscode-handoff.json").write_text(json_text, encoding="utf-8")
+        (stem_dir / "aigiscode-handoff.md").write_text(md_text, encoding="utf-8")
+
+        archive_dir = stem_dir.parent
+        stem_name = stem_dir.name
+        flat_handoff_json = archive_dir / f"{stem_name}-aigiscode-handoff.json"
+        flat_handoff_md = archive_dir / f"{stem_name}-aigiscode-handoff.md"
+        flat_handoff_json.write_text(json_text, encoding="utf-8")
+        flat_handoff_md.write_text(md_text, encoding="utf-8")
 
 
 def _serialize_graph_analysis(ga) -> dict:
@@ -659,6 +692,68 @@ def _serialize_review(rv) -> dict:
             }
             for v in rv.verdicts
         ],
+    }
+
+
+def _serialize_external_analysis(ea) -> dict:
+    """Serialize ExternalAnalysisResult for JSON output."""
+    return {
+        "tool_runs": [
+            {
+                "tool": tr.tool,
+                "command": tr.command,
+                "status": tr.status,
+                "findings_count": tr.findings_count,
+                "summary": tr.summary,
+                "version": tr.version,
+            }
+            for tr in ea.tool_runs
+        ],
+        "findings": [
+            {
+                "tool": f.tool,
+                "rule_id": f.rule_id,
+                "file_path": f.file_path,
+                "line": f.line,
+                "message": f.message,
+                "severity": f.severity,
+                "domain": f.domain,
+                "category": f.category,
+                "fingerprint": f.fingerprint,
+            }
+            for f in ea.findings
+        ],
+    }
+
+
+def _generate_agent_handoff(report: ReportData) -> dict:
+    """Generate agent handoff data for the JSON report."""
+    ga = report.graph_analysis
+    next_steps: list[str] = []
+
+    cycle_count = len(ga.strong_circular_dependencies) or len(ga.circular_dependencies)
+    if cycle_count:
+        next_steps.append(f"Break {cycle_count} circular dependency cycle(s)")
+    if ga.god_classes:
+        next_steps.append(f"Refactor {len(ga.god_classes)} god class(es)")
+    if ga.layer_violations:
+        next_steps.append(f"Fix {len(ga.layer_violations)} layer violation(s)")
+    if report.dead_code and report.dead_code.total:
+        next_steps.append(f"Remove {report.dead_code.total} dead code finding(s)")
+    if report.hardwiring and report.hardwiring.total:
+        next_steps.append(f"Address {report.hardwiring.total} hardwiring issue(s)")
+    if report.external_analysis and report.external_analysis.findings:
+        next_steps.append(
+            f"Triage {len(report.external_analysis.findings)} external finding(s)"
+        )
+
+    if not next_steps:
+        next_steps.append("No major issues detected — maintain current standards")
+
+    return {
+        "project_path": report.project_path,
+        "files_indexed": report.files_indexed,
+        "next_steps": next_steps,
     }
 
 
@@ -924,23 +1019,21 @@ def _generate_recommendations(report: ReportData) -> list[dict]:
 
 
 def _generate_security_summary(report: ReportData) -> dict:
-    if not report.hardwiring:
-        return {
-            "total_findings": 0,
-            "hardcoded_network": 0,
-            "env_outside_config": 0,
-            "high_severity": 0,
-            "ai_confirmed": 0,
-            "top_findings": [],
-        }
+    hardwired_findings = []
+    hardcoded_network = 0
+    env_outside_config = 0
 
-    findings = [
-        *report.hardwiring.hardcoded_network,
-        *report.hardwiring.env_outside_config,
-    ]
+    if report.hardwiring:
+        hardwired_findings = [
+            *report.hardwiring.hardcoded_network,
+            *report.hardwiring.env_outside_config,
+        ]
+        hardcoded_network = len(report.hardwiring.hardcoded_network)
+        env_outside_config = len(report.hardwiring.env_outside_config)
+
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     sorted_findings = sorted(
-        findings,
+        hardwired_findings,
         key=lambda finding: (
             severity_rank.get(finding.severity, 3),
             finding.file_path,
@@ -957,11 +1050,13 @@ def _generate_security_summary(report: ReportData) -> dict:
             and verdict.category in {"hardcoded_ip_url", "env_outside_config"}
         )
 
-    return {
-        "total_findings": len(findings),
-        "hardcoded_network": len(report.hardwiring.hardcoded_network),
-        "env_outside_config": len(report.hardwiring.env_outside_config),
-        "high_severity": sum(1 for finding in findings if finding.severity == "high"),
+    result: dict = {
+        "total_findings": len(hardwired_findings),
+        "hardcoded_network": hardcoded_network,
+        "env_outside_config": env_outside_config,
+        "high_severity": sum(
+            1 for finding in hardwired_findings if finding.severity == "high"
+        ),
         "ai_confirmed": ai_confirmed,
         "top_findings": [
             {
@@ -975,3 +1070,17 @@ def _generate_security_summary(report: ReportData) -> dict:
             for finding in sorted_findings[:10]
         ],
     }
+
+    # Add external analysis security counts
+    if report.external_analysis and report.external_analysis.findings:
+        external_findings = report.external_analysis.findings
+        result["external_findings"] = len(external_findings)
+        # Count by category
+        category_counts: dict[str, int] = {}
+        for f in external_findings:
+            cat = f.category
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+        for cat, count in category_counts.items():
+            result[cat] = count
+
+    return result

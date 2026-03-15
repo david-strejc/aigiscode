@@ -221,14 +221,10 @@ def collect_external_analysis_for_report(
 
     excluded = 0
     if existing_rules and result.findings:
-        filtered_findings, excluded = filter_external_findings(
-            result.findings,
+        result, excluded = filter_external_findings(
+            result,
             existing_rules,
             ctx=ctx,
-        )
-        result = ExternalAnalysisResult(
-            tool_runs=result.tool_runs,
-            findings=filtered_findings,
         )
 
     return result, excluded
@@ -300,6 +296,7 @@ def build_report_data(
         dead_code=dead_code_result,
         hardwiring=hardwiring_result,
         review=review_result,
+        external_analysis=external_analysis,
         envelopes_generated=envelopes_generated,
         synthesis=synthesis_text,
         language_breakdown=store.get_language_breakdown(),

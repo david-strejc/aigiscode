@@ -239,6 +239,7 @@ class ReportData(BaseModel):
     dead_code: Any | None = None  # DeadCodeResult from graph.deadcode
     hardwiring: Any | None = None  # HardwiringResult from graph.hardwiring
     review: Any | None = None  # ReviewResult from review.ai_reviewer
+    external_analysis: Any | None = None  # ExternalAnalysisResult
     extensions: dict[str, Any] = Field(default_factory=dict)
     feedback_loop: FeedbackLoop = Field(default_factory=FeedbackLoop)
 
