@@ -17,6 +17,7 @@ class Language(str, enum.Enum):
     PHP = "php"
     PYTHON = "python"
     RUBY = "ruby"
+    RUST = "rust"
     TYPESCRIPT = "typescript"
     JAVASCRIPT = "javascript"
     VUE = "vue"
@@ -290,6 +291,7 @@ class AigisCodeConfig(BaseModel):
             Language.PHP,
             Language.PYTHON,
             Language.RUBY,
+            Language.RUST,
             Language.TYPESCRIPT,
             Language.JAVASCRIPT,
             Language.VUE,
