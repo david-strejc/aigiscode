@@ -28,11 +28,29 @@ def _has_anthropic_key() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
+def describe_backend_order(
+    primary_backend: str = "codex",
+    allow_codex_cli_fallback: bool = True,
+    allow_claude_fallback: bool = True,
+) -> str:
+    """Return a human-readable string describing the active backend fallback chain."""
+    backends: list[str] = []
+    if primary_backend == "codex" and _has_openai_key():
+        backends.append("Codex SDK")
+    if allow_codex_cli_fallback and _has_codex_cli():
+        backends.append("Codex CLI")
+    if allow_claude_fallback and _has_anthropic_key():
+        backends.append("Claude")
+    return " → ".join(backends) if backends else "no backend available"
+
+
 def has_any_backend(
-    allow_codex_cli_fallback: bool = True, allow_claude_fallback: bool = True
+    primary_backend: str = "codex",
+    allow_codex_cli_fallback: bool = True,
+    allow_claude_fallback: bool = True,
 ) -> bool:
     """Return True when at least one configured backend is available."""
-    if _has_openai_key():
+    if primary_backend == "codex" and _has_openai_key():
         return True
     if allow_codex_cli_fallback and _has_codex_cli():
         return True
