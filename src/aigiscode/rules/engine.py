@@ -403,3 +403,26 @@ def update_rule_stats(rules: list[Rule], hit_rules: set[str], run_id: str) -> No
                 logger.info(
                     "Rule %s marked stale (miss_streak=%d)", rule.id, rule.miss_streak
                 )
+
+
+# ---------------------------------------------------------------------------
+# External findings filtering
+# ---------------------------------------------------------------------------
+
+
+def filter_external_findings(
+    findings: list,
+    rules: list[Rule],
+    ctx: Any = None,
+) -> tuple[list, int]:
+    """Filter external security findings against saved rules.
+
+    Returns (remaining_findings, excluded_count).
+    For now, external findings are not matched against the v2 rule engine
+    since their structure differs from dead-code/hardwiring findings.
+    This is a placeholder that will be extended when external rule matching is added.
+    """
+    if not rules or not findings:
+        return findings, 0
+    # TODO: Implement structural matching for external findings
+    return findings, 0
