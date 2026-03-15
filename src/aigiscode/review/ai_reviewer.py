@@ -368,6 +368,7 @@ async def review_findings(
     project_type: str = "mixed-language project",
     store: Any = None,
     review_model: str = "gpt-5.3-codex",
+    primary_backend: str = "codex",
     allow_claude_fallback: bool = True,
 ) -> tuple[ReviewResult, list[Rule]]:
     """Review all findings using AI, returning verdicts and generated rules.
