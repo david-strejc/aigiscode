@@ -403,3 +403,104 @@ def update_rule_stats(rules: list[Rule], hit_rules: set[str], run_id: str) -> No
                 logger.info(
                     "Rule %s marked stale (miss_streak=%d)", rule.id, rule.miss_streak
                 )
+
+
+# ---------------------------------------------------------------------------
+# External findings filtering
+# ---------------------------------------------------------------------------
+
+
+def filter_external_findings(
+    external_analysis: Any,
+    rules: list[Rule],
+    ctx: Any = None,
+) -> tuple[Any, int]:
+    """Filter external security findings against saved rules.
+
+    Accepts either an ``ExternalAnalysisResult`` or a plain list of findings
+    (for backward compatibility).
+
+    When given an ``ExternalAnalysisResult``, returns a new
+    ``(filtered_ExternalAnalysisResult, excluded_count)`` tuple with
+    tool run summaries updated to reflect post-filtering counts.
+
+    When given a plain list, returns ``(filtered_list, excluded_count)``.
+    """
+    from aigiscode.models import ExternalAnalysisResult, ExternalToolRun
+
+    # Handle plain list (backward compat)
+    if isinstance(external_analysis, list):
+        if not rules or not external_analysis:
+            return external_analysis, 0
+        if ctx is None:
+            ctx = StructuralContext()
+        kept = []
+        excluded = 0
+        for finding in external_analysis:
+            matched = False
+            for rule in rules:
+                if _plain_finding_matches(finding, rule, ctx):
+                    matched = True
+                    break
+            if matched:
+                excluded += 1
+            else:
+                kept.append(finding)
+        return kept, excluded
+
+    # Handle ExternalAnalysisResult
+    if not rules or not external_analysis.findings:
+        return external_analysis, 0
+
+    if ctx is None:
+        ctx = StructuralContext()
+
+    hit_rules: set[str] = set()
+    kept: list = []
+    excluded = 0
+
+    for finding in external_analysis.findings:
+        matched = False
+        for rule in rules:
+            if matches_rule(finding, rule, ctx):
+                hit_rules.add(rule.id)
+                matched = True
+                break
+        if matched:
+            excluded += 1
+        else:
+            kept.append(finding)
+
+    # Rebuild tool_runs with updated summaries
+    updated_tool_runs: list[ExternalToolRun] = []
+    for tr in external_analysis.tool_runs:
+        tool_findings = [f for f in kept if f.tool == tr.tool]
+        new_summary = dict(tr.summary)
+        new_summary["finding_count"] = len(tool_findings)
+        new_summary["rules_filtered_count"] = excluded
+        updated_tool_runs.append(
+            ExternalToolRun(
+                tool=tr.tool,
+                command=tr.command,
+                status=tr.status,
+                findings_count=len(tool_findings),
+                summary=new_summary,
+                version=tr.version,
+            )
+        )
+
+    return ExternalAnalysisResult(
+        tool_runs=updated_tool_runs,
+        findings=kept,
+    ), excluded
+
+
+def _plain_finding_matches(finding: Any, rule: Rule, ctx: StructuralContext) -> bool:
+    """Try to match a plain dict or object against a rule.
+
+    Plain dicts don't have a ``category`` attribute so this always returns
+    False — preserving the old pass-through behaviour.
+    """
+    if isinstance(finding, dict):
+        return False
+    return matches_rule(finding, rule, ctx)
