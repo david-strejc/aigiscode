@@ -172,6 +172,51 @@ class GraphAnalysisResult(BaseModel):
     density: float = 0.0
 
 
+# --- External analysis models ---
+
+
+class ExternalFinding(BaseModel):
+    """A single finding from an external analysis tool."""
+
+    tool: str
+    rule_id: str = ""
+    file_path: str = ""
+    line: int = 0
+    message: str = ""
+    severity: str = "medium"
+    domain: str = "security"
+    category: str = ""
+    fingerprint: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExternalToolRun(BaseModel):
+    """Record of a single external tool execution."""
+
+    tool: str
+    command: list[str] = Field(default_factory=list)
+    status: str = "pending"
+    findings_count: int = 0
+    summary: dict[str, Any] = Field(default_factory=dict)
+    version: str = ""
+
+
+class ExternalAnalysisResult(BaseModel):
+    """Aggregate result of all external tool runs."""
+
+    tool_runs: list[ExternalToolRun] = Field(default_factory=list)
+    findings: list[ExternalFinding] = Field(default_factory=list)
+
+
+class FeedbackLoop(BaseModel):
+    """Metrics for the feedback loop between detection and policy."""
+
+    detected_total: int = 0
+    actionable_visible: int = 0
+    accepted_by_policy: int = 0
+    rules_generated: int = 0
+
+
 # --- Report models ---
 
 
@@ -194,6 +239,7 @@ class ReportData(BaseModel):
     hardwiring: Any | None = None  # HardwiringResult from graph.hardwiring
     review: Any | None = None  # ReviewResult from review.ai_reviewer
     extensions: dict[str, Any] = Field(default_factory=dict)
+    feedback_loop: FeedbackLoop = Field(default_factory=FeedbackLoop)
 
 
 # --- AI Review models ---
